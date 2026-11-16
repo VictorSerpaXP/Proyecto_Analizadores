@@ -95,6 +95,10 @@ body {
   align-items: center;
 }
 
+.controls .btn {
+  white-space: nowrap;
+}
+
 select,
 .btn {
   padding: 6px 12px;
@@ -112,7 +116,7 @@ select:focus-visible {
 }
 
 select {
-  max-width: 250px;
+  max-width: 190px;
   background-color: var(--bg-panel);
   color: var(--text-primary);
 }
