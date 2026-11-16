@@ -8,7 +8,7 @@ export class SymbolTable {
   }
 
   // Inserta una nueva variable declarada
-  insert(name, type, line, initialValue = null) {
+  insert(name, type, line, initialValue = null, isArray = false) {
     if (this.symbols.has(name)) {
       return false; // Error: ya fue declarada previamente
     }
@@ -18,6 +18,7 @@ export class SymbolTable {
       name: name,
       type: type,
       value: initialValue !== null ? initialValue : this.getDefaultValue(type),
+      isArray,
       declaredLine: line,
       references: [], // Líneas donde se usa la variable
     });
@@ -45,6 +46,13 @@ export class SymbolTable {
     }
   }
 
+  updateArrayElement(name, index, newValue, referenceLine) {
+    const entry = this.lookup(name, referenceLine);
+    if (entry) {
+      entry.value[index] = newValue;
+    }
+  }
+
   getDefaultValue(type) {
     switch (type) {
       case "int":
@@ -54,7 +62,7 @@ export class SymbolTable {
       case "bool":
         return false;
       case "char":
-        return '""';
+        return "";
       default:
         return null;
     }

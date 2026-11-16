@@ -3,8 +3,16 @@
 export function syntacticAnalyzer(tokens) {
   let current = 0;
   const errors = [];
+  const statementStarts = new Set([
+    "TYPE",
+    "PRINT",
+    "ID",
+    "IF",
+    "WHILE",
+    "FOR",
+    "LBRACE",
+  ]);
 
-  // Funciones auxiliares para navegar los tokens
   function peek() {
     return tokens[current];
   }
@@ -23,8 +31,7 @@ export function syntacticAnalyzer(tokens) {
   }
 
   function check(type) {
-    if (isAtEnd()) return false;
-    return peek().type === type;
+    return !isAtEnd() && peek().type === type;
   }
 
   function match(...types) {
@@ -41,57 +48,63 @@ export function syntacticAnalyzer(tokens) {
     if (check(type)) return advance();
     const token = peek() || previous();
     const line = token ? token.line : 1;
-    const col = token ? token.column : 1;
+    const column = token ? token.column : 1;
     throw {
       phase: "Sintáctico",
-      message: `${errorMessage} (se encontró '${token ? token.lexeme : "fin de archivo"}') en línea ${line}, columna ${col}`,
+      message: `${errorMessage} (se encontró '${peek()?.lexeme || "fin de archivo"}') en línea ${line}, columna ${column}`,
       line,
-      column: col,
+      column,
     };
   }
 
-  // --- REGLAS GRAMATICALES ---
+  function synchronize(inBlock, start) {
+    if (current === start && !isAtEnd() && !(inBlock && check("RBRACE"))) {
+      advance();
+    }
 
-  // Programa -> Lista de sentencias
+    while (!isAtEnd()) {
+      if (previous()?.type === "SEMICOLON") return;
+      if (inBlock && check("RBRACE")) return;
+      if (statementStarts.has(peek().type)) return;
+      advance();
+    }
+  }
+
   function parseProgram() {
     const body = [];
     while (!isAtEnd()) {
+      const start = current;
       try {
         body.push(parseStatement());
-      } catch (err) {
-        errors.push(err);
-        // Recuperación de error: avanzar hasta el próximo ';'
-        while (!isAtEnd() && previous()?.type !== "SEMICOLON") {
-          advance();
-        }
+      } catch (error) {
+        errors.push(error);
+        synchronize(false, start);
       }
     }
     return { type: "Program", body };
   }
 
-  // Sentencia -> Declaración | Asignación | Impresión
   function parseStatement() {
-    if (match("TYPE")) {
-      return parseDeclaration();
-    }
-    if (match("PRINT")) {
-      return parsePrintStatement();
-    }
-    if (check("ID")) {
-      return parseAssignment();
-    }
+    if (match("TYPE")) return parseDeclaration();
+    if (match("PRINT")) return parsePrintStatement();
+    if (match("IF")) return parseIfStatement();
+    if (match("WHILE")) return parseWhileStatement();
+    if (match("FOR")) return parseForStatement();
+    if (match("LBRACE")) return parseBlockStatement();
+    if (check("ID")) return parseAssignment();
 
-    const token = peek();
+    const token = peek() || previous();
+    const line = token ? token.line : 1;
+    const column = token ? token.column : 1;
     throw {
       phase: "Sintáctico",
-      message: `Instrucción no válida '${token.lexeme}' en línea ${token.line}, columna ${token.column}`,
-      line: token.line,
-      column: token.column,
+      message: `Instrucción no válida '${token ? token.lexeme : "fin de archivo"}' en línea ${line}, columna ${column}`,
+      line,
+      column,
     };
   }
 
-  // Declaración -> TYPE ID (, ID)* ;   (Ej: float x, y;)
-  function parseDeclaration() {
+  function parseDeclaration(consumeSemicolon = true) {
     const typeToken = previous();
     const declarations = [];
 
@@ -100,21 +113,29 @@ export function syntacticAnalyzer(tokens) {
         "ID",
         "Se esperaba un nombre de variable después del tipo o coma",
       );
-      let initValue = null;
-
-      // Soporte opcional para inicialización directa (ej. int x = 5;)
-      if (match("EQUAL")) {
-        initValue = parseExpression();
+      let isArray = false;
+      let arraySize = null;
+      if (match("LBRACKET")) {
+        isArray = true;
+        if (!check("RBRACKET")) arraySize = parseExpression();
+        consume("RBRACKET", "Falta cerrar el tamaño del arreglo con ']'");
       }
+
+      let init = null;
+      if (match("EQUAL")) init = parseExpression();
 
       declarations.push({
         id: idToken.lexeme,
         line: idToken.line,
-        init: initValue,
+        init,
+        isArray,
+        arraySize,
       });
     } while (match("COMMA"));
 
-    consume("SEMICOLON", "Falta ';' al final de la declaración");
+    if (consumeSemicolon) {
+      consume("SEMICOLON", "Falta ';' al final de la declaración");
+    }
 
     return {
       type: "VariableDeclaration",
@@ -124,12 +145,29 @@ export function syntacticAnalyzer(tokens) {
     };
   }
 
-  // Asignación -> ID = Expresión ;   (Ej: x = (1 + 5) * 20 / 5;)
-  function parseAssignment() {
+  function parseAssignment(consumeSemicolon = true) {
     const idToken = consume("ID", "Se esperaba un identificador");
+    let index = null;
+    if (match("LBRACKET")) {
+      index = parseExpression();
+      consume("RBRACKET", "Falta cerrar el índice del arreglo con ']'");
+    }
     consume("EQUAL", "Se esperaba '=' en la asignación");
     const value = parseExpression();
-    consume("SEMICOLON", "Falta ';' al final de la asignación");
+
+    if (consumeSemicolon) {
+      consume("SEMICOLON", "Falta ';' al final de la asignación");
+    }
+
+    if (index) {
+      return {
+        type: "ArrayAssignment",
+        id: idToken.lexeme,
+        index,
+        value,
+        line: idToken.line,
+      };
+    }
 
     return {
       type: "AssignmentExpression",
@@ -139,13 +177,12 @@ export function syntacticAnalyzer(tokens) {
     };
   }
 
-  // Impresión -> Console.Log ( Expresión ) ;
   function parsePrintStatement() {
     const printToken = previous();
-    consume("LPAREN", "Se esperaba '(' después de Console.Log");
+    consume("LPAREN", "Se esperaba '(' después de la instrucción de impresión");
     const expression = parseExpression();
     consume("RPAREN", "Se esperaba ')' después de la expresión");
-    consume("SEMICOLON", "Falta ';' al final de Console.Log");
+    consume("SEMICOLON", "Falta ';' al final de la instrucción de impresión");
 
     return {
       type: "PrintStatement",
@@ -154,43 +191,148 @@ export function syntacticAnalyzer(tokens) {
     };
   }
 
-  // Expresión -> Término ((+ | -) Término)*
+  function parseBlockStatement() {
+    const openBrace = previous();
+    const body = [];
+
+    while (!isAtEnd() && !check("RBRACE")) {
+      const start = current;
+      try {
+        body.push(parseStatement());
+      } catch (error) {
+        errors.push(error);
+        synchronize(true, start);
+      }
+    }
+
+    consume("RBRACE", "Falta cerrar el bloque con '}'");
+    return { type: "BlockStatement", body, line: openBrace.line };
+  }
+
+  function parseIfStatement() {
+    const token = previous();
+    consume("LPAREN", "Se esperaba '(' después de if");
+    const condition = parseExpression();
+    consume("RPAREN", "Se esperaba ')' después de la condición de if");
+    const consequent = parseStatement();
+    const alternate = match("ELSE") ? parseStatement() : null;
+
+    return {
+      type: "IfStatement",
+      condition,
+      consequent,
+      alternate,
+      line: token.line,
+    };
+  }
+
+  function parseWhileStatement() {
+    const token = previous();
+    consume("LPAREN", "Se esperaba '(' después de while");
+    const condition = parseExpression();
+    consume("RPAREN", "Se esperaba ')' después de la condición de while");
+    const body = parseStatement();
+
+    return {
+      type: "WhileStatement",
+      condition,
+      body,
+      line: token.line,
+    };
+  }
+
+  function parseForStatement() {
+    const token = previous();
+    consume("LPAREN", "Se esperaba '(' después de for");
+
+    let initializer = null;
+    if (match("SEMICOLON")) {
+      initializer = null;
+    } else if (match("TYPE")) {
+      initializer = parseDeclaration(false);
+      consume("SEMICOLON", "Falta ';' después del inicio de for");
+    } else {
+      initializer = parseAssignment(false);
+      consume("SEMICOLON", "Falta ';' después del inicio de for");
+    }
+
+    const condition = check("SEMICOLON") ? null : parseExpression();
+    consume("SEMICOLON", "Falta ';' después de la condición de for");
+
+    const update = check("RPAREN") ? null : parseAssignment(false);
+    consume("RPAREN", "Se esperaba ')' al final de la cabecera de for");
+    const body = parseStatement();
+
+    return {
+      type: "ForStatement",
+      initializer,
+      condition,
+      update,
+      body,
+      line: token.line,
+    };
+  }
+
   function parseExpression() {
-    let left = parseTerm();
-
-    while (match("PLUS", "MINUS")) {
-      const operator = previous().lexeme;
-      const right = parseTerm();
-      left = {
-        type: "BinaryExpression",
-        operator,
-        left,
-        right,
-      };
-    }
-
-    return left;
+    return parseLogicalOr();
   }
 
-  // Término -> Factor ((* | /) Factor)*  (Respeta precedencia de * y / sobre + y -)
+  function parseLogicalOr() {
+    return parseBinaryLevel(parseLogicalAnd, { OR: "||" });
+  }
+
+  function parseLogicalAnd() {
+    return parseBinaryLevel(parseEquality, { AND: "&&" });
+  }
+
+  function parseEquality() {
+    return parseBinaryLevel(parseComparison, {
+      EQUAL_EQUAL: "==",
+      NOT_EQUAL: "!=",
+    });
+  }
+
+  function parseComparison() {
+    return parseBinaryLevel(parseAdditive, {
+      LESS: "<",
+      LESS_EQUAL: "<=",
+      GREATER: ">",
+      GREATER_EQUAL: ">=",
+    });
+  }
+
+  function parseAdditive() {
+    return parseBinaryLevel(parseTerm, { PLUS: "+", MINUS: "-" });
+  }
+
   function parseTerm() {
-    let left = parseFactor();
+    return parseBinaryLevel(parseUnary, { TIMES: "*", DIVIDE: "/" });
+  }
 
-    while (match("TIMES", "DIVIDE")) {
-      const operator = previous().lexeme;
-      const right = parseFactor();
-      left = {
-        type: "BinaryExpression",
-        operator,
-        left,
-        right,
-      };
+  function parseBinaryLevel(nextParser, operators) {
+    let left = nextParser();
+
+    while (!isAtEnd() && operators[peek().type]) {
+      const operator = advance().lexeme;
+      const right = nextParser();
+      left = { type: "BinaryExpression", operator, left, right };
     }
 
     return left;
   }
 
-  // Factor -> NUMBER | FLOAT_NUM | STRING | BOOL_VAL | ID | ( Expresión )
+  function parseUnary() {
+    if (match("NOT", "MINUS")) {
+      const operator = previous().lexeme;
+      return {
+        type: "UnaryExpression",
+        operator,
+        operand: parseUnary(),
+      };
+    }
+    return parseFactor();
+  }
+
   function parseFactor() {
     if (match("NUMBER")) {
       return { type: "Literal", dataType: "int", value: previous().value };
@@ -199,11 +341,7 @@ export function syntacticAnalyzer(tokens) {
       return { type: "Literal", dataType: "float", value: previous().value };
     }
     if (match("STRING")) {
-      return {
-        type: "Literal",
-        dataType: "char",
-        value: previous().value.slice(1, -1),
-      };
+      return { type: "Literal", dataType: "char", value: previous().value };
     }
     if (match("BOOL_VAL")) {
       return {
@@ -214,20 +352,37 @@ export function syntacticAnalyzer(tokens) {
     }
     if (match("ID")) {
       const token = previous();
+      if (match("LBRACKET")) {
+        const index = parseExpression();
+        consume("RBRACKET", "Falta cerrar el índice del arreglo con ']'");
+        return { type: "ArrayAccess", name: token.lexeme, index, line: token.line };
+      }
       return { type: "Identifier", name: token.lexeme, line: token.line };
     }
+    if (match("LBRACKET")) {
+      const elements = [];
+      if (!check("RBRACKET")) {
+        do {
+          elements.push(parseExpression());
+        } while (match("COMMA"));
+      }
+      consume("RBRACKET", "Falta cerrar el arreglo con ']'");
+      return { type: "ArrayLiteral", elements };
+    }
     if (match("LPAREN")) {
-      const expr = parseExpression();
+      const expression = parseExpression();
       consume("RPAREN", "Falta cerrar paréntesis ')'");
-      return expr;
+      return expression;
     }
 
     const token = peek() || previous();
+    const line = token ? token.line : 1;
+    const column = token ? token.column : 1;
     throw {
       phase: "Sintáctico",
-      message: `Expresión inesperada '${token ? token.lexeme : ""}' en línea ${token ? token.line : 1}`,
-      line: token ? token.line : 1,
-      column: token ? token.column : 1,
+      message: `Expresión inesperada '${token ? token.lexeme : "fin de archivo"}' en línea ${line}, columna ${column}`,
+      line,
+      column,
     };
   }
 

@@ -4,27 +4,54 @@ export function lexicalAnalyzer(input) {
   const tokens = [];
   const errors = [];
 
-  // Palabras reservadas (tipos de datos y valores booleanos)
-  const keywords = new Set(["int", "float", "char", "bool", "true", "false"]);
+  const keywords = new Set([
+    "int",
+    "float",
+    "char",
+    "bool",
+    "true",
+    "false",
+    "if",
+    "else",
+    "while",
+    "for",
+  ]);
+  const controlKeywords = {
+    if: "IF",
+    else: "ELSE",
+    while: "WHILE",
+    for: "FOR",
+  };
 
-  // Definición de reglas con Expresiones Regulares
   const tokenSpecs = [
     { type: "NEWLINE", regex: /^\n/ },
     { type: "SKIP", regex: /^[ \t\r]+/ },
-    { type: "PRINT", regex: /^(Console\.Log|print)\b/ }, // Instrucción de impresión
-    { type: "FLOAT_NUM", regex: /^\d+\.\d+/ }, // Números decimales
-    { type: "NUMBER", regex: /^\d+/ }, // Números enteros
-    { type: "ID", regex: /^[a-zA-Z_]\w*/ }, // Identificadores
-    { type: "PLUS", regex: /^\+/ }, // +
-    { type: "MINUS", regex: /^-/ }, // -
-    { type: "TIMES", regex: /^\*/ }, // *
-    { type: "DIVIDE", regex: /^\// }, // /
-    { type: "EQUAL", regex: /^=/ }, // =
-    { type: "LPAREN", regex: /^\(/ }, // (
-    { type: "RPAREN", regex: /^\)/ }, // )
-    { type: "SEMICOLON", regex: /^;/ }, // ;
-    { type: "COMMA", regex: /^,/ }, // ,
-    { type: "STRING", regex: /^"[^"]*"/ }, // Cadenas de texto
+    { type: "PRINT", regex: /^(Console\.Log|print)\b/ },
+    { type: "FLOAT_NUM", regex: /^\d+\.\d+/ },
+    { type: "NUMBER", regex: /^\d+/ },
+    { type: "ID", regex: /^[a-zA-Z_]\w*/ },
+    { type: "AND", regex: /^&&/ },
+    { type: "OR", regex: /^\|\|/ },
+    { type: "EQUAL_EQUAL", regex: /^==/ },
+    { type: "NOT_EQUAL", regex: /^!=/ },
+    { type: "LESS_EQUAL", regex: /^<=/ },
+    { type: "GREATER_EQUAL", regex: /^>=/ },
+    { type: "PLUS", regex: /^\+/ },
+    { type: "MINUS", regex: /^-/ },
+    { type: "TIMES", regex: /^\*/ },
+    { type: "DIVIDE", regex: /^\// },
+    { type: "LESS", regex: /^</ },
+    { type: "GREATER", regex: /^>/ },
+    { type: "EQUAL", regex: /^=/ },
+    { type: "NOT", regex: /^!/ },
+    { type: "LPAREN", regex: /^\(/ },
+    { type: "RPAREN", regex: /^\)/ },
+    { type: "LBRACKET", regex: /^\[/ },
+    { type: "RBRACKET", regex: /^\]/ },
+    { type: "LBRACE", regex: /^\{/ },
+    { type: "RBRACE", regex: /^\}/ },
+    { type: "SEMICOLON", regex: /^;/ },
+    { type: "COMMA", regex: /^,/ },
   ];
 
   let cursor = 0;
@@ -33,6 +60,52 @@ export function lexicalAnalyzer(input) {
 
   while (cursor < input.length) {
     const remainingText = input.slice(cursor);
+
+    if (remainingText[0] === '"') {
+      const stringMatch = remainingText.match(
+        /^"(?:[^"\\\x00-\x1F]|\\(?:["\\/bfnrt]|u[0-9a-fA-F]{4}))*"/,
+      );
+
+      if (stringMatch) {
+        const lexeme = stringMatch[0];
+        tokens.push({
+          type: "STRING",
+          lexeme,
+          value: JSON.parse(lexeme),
+          line,
+          column,
+        });
+        cursor += lexeme.length;
+        column += lexeme.length;
+        continue;
+      }
+
+      errors.push({
+        phase: "Léxico",
+        message: `Cadena sin cerrar o secuencia de escape inválida en línea ${line}, columna ${column}`,
+        line,
+        column,
+      });
+
+      let consumed = 1;
+      let escaped = false;
+      while (cursor + consumed < input.length) {
+        const character = input[cursor + consumed];
+        if (character === "\n" || character === "\r") break;
+        consumed++;
+        if (escaped) {
+          escaped = false;
+        } else if (character === "\\") {
+          escaped = true;
+        } else if (character === '"') {
+          break;
+        }
+      }
+      cursor += consumed;
+      column += consumed;
+      continue;
+    }
+
     let matched = false;
 
     for (const spec of tokenSpecs) {
@@ -54,6 +127,8 @@ export function lexicalAnalyzer(input) {
           if (tokenType === "ID" && keywords.has(lexeme)) {
             if (lexeme === "true" || lexeme === "false") {
               tokenType = "BOOL_VAL";
+            } else if (controlKeywords[lexeme]) {
+              tokenType = controlKeywords[lexeme];
             } else {
               tokenType = "TYPE";
             }

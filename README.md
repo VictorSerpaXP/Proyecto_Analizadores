@@ -23,7 +23,7 @@ También puedes abrir la carpeta con Visual Studio Code e iniciar `index.html` c
 
 ## Cómo usar
 
-1. Escribe o pega el programa en **Código de Entrada**. También puedes cargar un archivo `.txt` o elegir uno de los ejemplos.
+1. Escribe o pega el programa en **Código de Entrada**. También puedes cargar un archivo `.txt` o elegir uno de los ejemplos, incluidos **Booleanos, arreglos y control de flujo** y **Error Sintáctico**.
 2. Presiona **Analizar Código**.
 3. Explora las pestañas:
    - **Tokens (Léxico):** tokens reconocidos y sus posiciones.
@@ -44,6 +44,29 @@ Tipos disponibles: `int`, `float`, `char` y `bool`.
 - Booleanos: `true` y `false`
 - Identificadores: comienzan con una letra o `_`; después pueden contener letras, números y `_`.
 
+Las cadenas usan comillas dobles y admiten estas secuencias de escape JSON:
+
+| Secuencia | Carácter que representa |
+| --- | --- |
+| `\"` | Comilla doble (`"`) dentro de la cadena |
+| `\\` | Barra invertida (`\`) |
+| `\/` | Barra diagonal (`/`); es válida aunque normalmente no hace falta escaparla |
+| `\b` | Retroceso (backspace) |
+| `\f` | Salto de página (form feed) |
+| `\n` | Salto de línea |
+| `\r` | Retorno de carro |
+| `\t` | Tabulación |
+| `\uXXXX` | Carácter Unicode indicado por cuatro dígitos hexadecimales; por ejemplo, `\u00F1` representa `ñ` |
+
+El escape se escribe dentro del texto fuente y se convierte al carácter correspondiente al analizar la cadena. Por ejemplo:
+
+```text
+char mensaje = "Hola\n\t\"mundo\"\\";
+Console.Log(mensaje);
+```
+
+La salida contiene `Hola`, un salto de línea, una tabulación, `"mundo"` y una barra invertida. Solo se aceptan los escapes de la tabla; por ejemplo, `\q` produce un error léxico.
+
 ### Sentencias
 
 ```text
@@ -59,9 +82,97 @@ print(promedio);
 
 Se admiten declaraciones con varias variables, asignaciones y llamadas de impresión con `Console.Log(...)` o `print(...)`. Las sentencias terminan con `;`.
 
+### Arreglos
+
+Los arreglos son de tamaño fijo y contienen un solo tipo de dato:
+
+```text
+int numeros[3] = [10, 20, 30];
+numeros[1] = 25;
+Console.Log(numeros[1]);
+```
+
+El tamaño puede inferirse de la lista inicial: `float medidas[] = [1.5, 2.5];`. Un arreglo declarado con tamaño y sin inicializador comienza con valores predeterminados para su tipo. Los índices empiezan en `0`; acceder fuera de sus límites produce un error de ejecución.
+El tamaño máximo es de 10 000 elementos.
+
 ### Expresiones
 
-Se admiten los operadores aritméticos `+`, `-`, `*` y `/`, además de paréntesis. La multiplicación y la división tienen precedencia sobre la suma y la resta; los paréntesis permiten agrupar expresiones.
+Operadores disponibles:
+
+- Aritméticos: `+`, `-`, `*`, `/`; también se admite el menos unario.
+- Comparación: `<`, `<=`, `>`, `>=`, `==`, `!=`.
+- Lógicos: `&&`, `||`, `!`.
+
+`&&` y `||` requieren booleanos y evalúan con cortocircuito. Las comparaciones de orden aceptan números; `==` y `!=` aceptan valores del mismo tipo o una combinación de `int` y `float`. La precedencia, de mayor a menor, es: `!` y menos unario, `*` y `/`, `+` y `-`, comparación, igualdad, `&&` y `||`. Los paréntesis permiten agrupar expresiones.
+
+### Control de flujo
+
+Los bloques usan llaves. Se admiten `if`/`else`, `while` y `for`:
+
+```text
+bool continuar = true;
+int suma = 0;
+
+for (int i = 0; i < 3 && continuar; i = i + 1) {
+  suma = suma + i;
+  if (suma >= 3) {
+    continuar = false;
+  }
+}
+
+while (suma < 5) {
+  suma = suma + 1;
+}
+```
+
+Las condiciones deben ser de tipo `bool`. Para mantener la aplicación receptiva, la ejecución limita a 10 000 el total de iteraciones de bucle por análisis.
+
+## Ejemplos breves
+
+### Comparación y lógica
+
+```text
+bool mayor = 5 >= 3 && !false;
+if (mayor) {
+  Console.Log("sí");
+}
+```
+
+### Bucle `while`
+
+```text
+int i = 0;
+while (i < 3) {
+  Console.Log(i);
+  i = i + 1;
+}
+```
+
+### Bucle `for`
+
+```text
+int suma = 0;
+for (int i = 1; i <= 3; i = i + 1) {
+  suma = suma + i;
+}
+Console.Log(suma);
+```
+
+### Arreglo
+
+```text
+int datos[] = [4, 8];
+Console.Log(datos[1]);
+```
+
+### Error sintáctico
+
+```text
+int edad
+Console.Log(edad);
+```
+
+Falta `;` después de la declaración `int edad`. El analizador indicará el error sintáctico y su ubicación.
 
 ## Fases del análisis
 
@@ -69,7 +180,7 @@ Se admiten los operadores aritméticos `+`, `-`, `*` y `/`, además de paréntes
 2. **Análisis sintáctico:** comprueba declaraciones, asignaciones, impresiones y expresiones; genera el árbol sintáctico.
 3. **Análisis semántico:** registra variables, valida declaraciones y tipos, evalúa expresiones y reúne los resultados de impresión.
 
-El analizador semántico permite asignar un entero a una variable `float` y convertir un decimal a `int` truncando su parte fraccionaria. No permite usar cadenas o booleanos en operaciones aritméticas.
+El analizador semántico permite asignar un entero a una variable `float`. Al asignar un decimal a `int` (incluyendo inicializaciones y elementos de arreglos), trunca la parte fraccionaria hacia cero. No permite usar cadenas o booleanos en operaciones aritméticas.
 
 ## Estructura del proyecto
 
@@ -88,4 +199,4 @@ El analizador semántico permite asignar un entero a una variable `float` y conv
 
 ## Limitaciones
 
-El lenguaje implementado se enfoca en declaraciones, asignaciones, impresión y expresiones aritméticas. No incluye estructuras de control, funciones, operadores de comparación o lógicos, ni secuencias de escape en cadenas.
+El lenguaje no incluye funciones, `break`/`continue`, arreglos multidimensionales ni alcance local por bloque. Los arreglos tienen tamaño fijo y el bucle `for` usa una asignación como actualización (por ejemplo, `i = i + 1`); no se admiten operadores de incremento como `i++`.

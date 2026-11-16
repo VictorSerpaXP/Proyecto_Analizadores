@@ -8,6 +8,7 @@ const codeInput = document.getElementById("code-input");
 const lineNumbers = document.getElementById("line-numbers");
 const btnAnalyze = document.getElementById("btn-analyze");
 const btnClear = document.getElementById("btn-clear");
+const themeToggle = document.getElementById("btn-theme-toggle");
 const examplesSelect = document.getElementById("examples-select");
 const fileUpload = document.getElementById("file-upload");
 
@@ -22,6 +23,27 @@ const consoleOutput = document.getElementById("console-output");
 const examples = {
   valid_math: `int x;\nx = (1 + 5) * 20 / 5;\nConsole.Log(x);`,
   valid_decl: `float x, y;\nint z;\nz = 10 + 25;\nx = 3.5 * 2;\nConsole.Log(z);\nConsole.Log(x);`,
+  bool_control: `bool continuar = true;
+int valores[3] = [2, 4, 6];
+int suma = 0;
+int i = 0;
+
+while (i < 3 && continuar) {
+  suma = suma + valores[i];
+  i = i + 1;
+  if (suma >= 12) {
+    continuar = false;
+  }
+}
+
+if (!continuar && suma == 12) {
+  Console.Log("Suma:\\t");
+  Console.Log(suma);
+} else {
+  Console.Log("No se completó\\n");
+}`,
+  err_syn: `int edad
+Console.Log(edad);`,
   err_lex: `w = 32 # 5;\nz = {23}{23};`,
   err_sem: `int z;\nz = 1 + 2 * j + 4;\nConsole.Log(z);`,
 };
@@ -58,6 +80,15 @@ function setupTabs(buttonSelector, paneSelector) {
 
 setupTabs(".tab-btn", ".tab-pane");
 setupTabs(".console-tab-btn", ".console-pane");
+
+themeToggle.addEventListener("click", () => {
+  const theme = document.body.dataset.theme === "dark" ? "light" : "dark";
+  document.body.dataset.theme = theme;
+  const nextTheme = theme === "dark" ? "claro" : "oscuro";
+  themeToggle.textContent = `Modo ${nextTheme}`;
+  themeToggle.setAttribute("aria-label", `Cambiar al modo ${nextTheme}`);
+  themeToggle.setAttribute("aria-pressed", String(theme === "light"));
+});
 
 // 4. Cargar ejemplos y archivos .txt
 examplesSelect.addEventListener("change", (e) => {
@@ -149,18 +180,34 @@ function renderTokens(tokens) {
       '<tr><td colspan="4" class="empty-msg">No se encontraron tokens.</td></tr>';
     return;
   }
-  tokensBody.innerHTML = tokens
-    .map(
-      (t) => `
-        <tr>
-            <td><strong>${t.type}</strong></td>
-            <td><code>${t.lexeme}</code></td>
-            <td>${t.line}</td>
-            <td>${t.column}</td>
-        </tr>
-    `,
-    )
-    .join("");
+
+  const rows = tokens.map((token) => {
+    const row = document.createElement("tr");
+    const typeCell = document.createElement("td");
+    const type = document.createElement("strong");
+    type.textContent = token.type;
+    typeCell.append(type);
+
+    const lexemeCell = document.createElement("td");
+    const lexeme = document.createElement("code");
+    lexeme.textContent = token.lexeme;
+    lexemeCell.append(lexeme);
+
+    row.append(
+      typeCell,
+      lexemeCell,
+      createTableCell(token.line),
+      createTableCell(token.column),
+    );
+    return row;
+  });
+  tokensBody.replaceChildren(...rows);
+}
+
+function createTableCell(value) {
+  const cell = document.createElement("td");
+  cell.textContent = String(value);
+  return cell;
 }
 
 function renderAST(node) {
@@ -239,12 +286,21 @@ function getASTNodeLabel(node) {
     Program: "Programa",
     VariableDeclaration: "Declaración de variables",
     AssignmentExpression: "Asignación",
+    ArrayAssignment: "Asignación a arreglo",
     PrintStatement: "Impresión",
     BinaryExpression: "Operación",
+    UnaryExpression: "Operación unaria",
     Literal: "Literal",
     Identifier: "Variable",
+    ArrayAccess: "Acceso a arreglo",
+    ArrayLiteral: "Lista de valores",
+    BlockStatement: "Bloque",
+    IfStatement: "Condicional",
+    WhileStatement: "Bucle while",
+    ForStatement: "Bucle for",
   };
 
+  if (node.id && node.isArray) return "Declaración de arreglo";
   return labels[node.type] || (node.id ? "Declaración" : node.type);
 }
 
@@ -255,8 +311,17 @@ function getASTRelationship(key) {
     init: "Valor inicial",
     value: "Valor",
     expression: "Expresión",
+    condition: "Condición",
+    consequent: "Entonces",
+    alternate: "Si no",
+    initializer: "Inicio",
+    update: "Actualización",
     left: "Operando izquierdo",
     right: "Operando derecho",
+    operand: "Operando",
+    index: "Índice",
+    elements: "Elemento",
+    arraySize: "Tamaño",
   };
 
   return labels[key] || key;
@@ -282,22 +347,40 @@ function renderSymbolTable(symbols) {
     return;
   }
 
-  // Columnas exactas de la diapositiva de la Tabla de Símbolos del profesor:
-  // # | Nombre de Variable | Tipo | Valor | Línea Declaración | Líneas Referenciada
-  symbolsBody.innerHTML = symbols
-    .map(
-      (s) => `
-        <tr>
-            <td>${s.index}</td>
-            <td><strong>${s.name}</strong></td>
-            <td><code>${s.type}</code></td>
-            <td><code>${s.value}</code></td>
-            <td>${s.declaredLine}</td>
-            <td>${s.references.length > 0 ? s.references.join(", ") : "Ninguna"}</td>
-        </tr>
-    `,
-    )
-    .join("");
+  const rows = symbols.map((symbol) => {
+    const row = document.createElement("tr");
+    const nameCell = document.createElement("td");
+    const name = document.createElement("strong");
+    name.textContent = symbol.name;
+    nameCell.append(name);
+
+    const typeCell = document.createElement("td");
+    const type = document.createElement("code");
+    type.textContent = `${symbol.type}${symbol.isArray ? "[]" : ""}`;
+    typeCell.append(type);
+
+    const valueCell = document.createElement("td");
+    const value = document.createElement("code");
+    value.textContent = Array.isArray(symbol.value)
+      ? JSON.stringify(symbol.value)
+      : String(symbol.value);
+    valueCell.append(value);
+
+    row.append(
+      createTableCell(symbol.index),
+      nameCell,
+      typeCell,
+      valueCell,
+      createTableCell(symbol.declaredLine),
+      createTableCell(
+        symbol.references.length > 0
+          ? symbol.references.join(", ")
+          : "Ninguna",
+      ),
+    );
+    return row;
+  });
+  symbolsBody.replaceChildren(...rows);
 }
 
 function renderOutputs(outputs) {
@@ -307,20 +390,29 @@ function renderOutputs(outputs) {
     return;
   }
 
-  consoleOutput.innerHTML = outputs
-    .map(
-      (val) => `
-        <p class="log-success">> Salida de ejecución: <strong>${val}</strong></p>
-    `,
-    )
-    .join("");
+  const messages = outputs.map((value) => {
+    const message = document.createElement("p");
+    message.className = "log-success";
+    message.append(document.createTextNode("> Salida de ejecución: "));
+
+    const result = document.createElement("strong");
+    result.textContent = Array.isArray(value)
+      ? JSON.stringify(value)
+      : String(value);
+    message.append(result);
+    return message;
+  });
+  consoleOutput.replaceChildren(...messages);
 }
 
 function renderErrors(errors) {
-  consoleErrors.innerHTML = "";
-  errors.forEach((err) => {
-    consoleErrors.innerHTML += `<p class="log-error">✖ [Error ${err.phase}]: ${err.message}</p>`;
+  const messages = errors.map((error) => {
+    const message = document.createElement("p");
+    message.className = "log-error";
+    message.textContent = `✖ [Error ${error.phase}]: ${error.message}`;
+    return message;
   });
+  consoleErrors.replaceChildren(...messages);
 }
 
 function clearResultsOnFailure() {
