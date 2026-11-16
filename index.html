@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Analizador Léxico, Sintáctico y Semántico</title>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <!-- Barra Superior -->
+    <header class="top-bar">
+      <div class="brand">
+        <h1>Compilador Web JS</h1>
+      </div>
+
+      <div class="controls">
+        <select id="examples-select" title="Cargar ejemplo">
+          <option value="">-- Seleccionar Ejemplo --</option>
+          <option value="valid_math">Expresión Matemática Válida</option>
+          <option value="valid_decl">
+            Declaraciones y Tipos (int / float)
+          </option>
+          <option value="err_lex">Error Léxico (Carácter ilegal #)</option>
+          <option value="err_sem">
+            Error Semántico (Variable no declarada)
+          </option>
+        </select>
+
+        <button id="btn-analyze" class="btn btn-primary">
+          ▶ Analizar Código
+        </button>
+        <button id="btn-clear" class="btn btn-secondary">Limpiar</button>
+      </div>
+    </header>
+
+    <!-- Contenedor Principal (2 Columnas) -->
+    <main class="workspace">
+      <!-- Columna Izquierda (40%): Entrada de Código -->
+      <section class="panel editor-panel">
+        <div class="panel-header">
+          <h2>Código de Entrada</h2>
+          <label for="file-upload" class="btn-upload">📂 Cargar .txt</label>
+          <input type="file" id="file-upload" accept=".txt" hidden />
+        </div>
+
+        <div class="editor-container">
+          <div class="line-numbers" id="line-numbers">1</div>
+          <textarea
+            id="code-input"
+            spellcheck="false"
+            placeholder="Escribe tu código aquí...&#10;Ejemplo:&#10;int x;&#10;x = (1 + 5) * 20 / 5;"
+          ></textarea>
+        </div>
+      </section>
+
+      <!-- Columna Derecha (60%): Panel de Resultados -->
+      <section class="panel results-panel">
+        <!-- Pestañas de Fases -->
+        <div class="tabs-header">
+          <button class="tab-btn active" data-tab="tab-tokens">
+            1. Tokens (Léxico)
+          </button>
+          <button class="tab-btn" data-tab="tab-ast">
+            2. Árbol Sintáctico
+          </button>
+          <button class="tab-btn" data-tab="tab-symbols">
+            3. Tabla de Símbolos
+          </button>
+        </div>
+
+        <!-- Contenido de Pestañas -->
+        <div class="tabs-content">
+          <!-- Pestaña 1: Tokens -->
+          <div id="tab-tokens" class="tab-pane active">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Token</th>
+                    <th>Lexema</th>
+                    <th>Línea</th>
+                    <th>Columna</th>
+                  </tr>
+                </thead>
+                <tbody id="tokens-body">
+                  <tr>
+                    <td colspan="4" class="empty-msg">
+                      Presiona "Analizar Código" para ver los tokens...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Pestaña 2: Árbol Sintáctico -->
+          <div id="tab-ast" class="tab-pane">
+            <div id="ast-container" class="ast-tree">
+              <p class="empty-msg">El árbol sintáctico aparecerá aquí...</p>
+            </div>
+          </div>
+
+          <!-- Pestaña 3: Tabla de Símbolos -->
+          <div id="tab-symbols" class="tab-pane">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Nombre</th>
+                    <th>Tipo</th>
+                    <th>Valor</th>
+                    <th>Línea Decl.</th>
+                    <th>Referencias</th>
+                  </tr>
+                </thead>
+                <tbody id="symbols-body">
+                  <tr>
+                    <td colspan="6" class="empty-msg">
+                      La tabla de símbolos aparecerá aquí...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Panel Inferior: Consola y Salida -->
+    <footer class="bottom-console">
+      <div class="console-tabs">
+        <button class="console-tab-btn active" data-console="console-errors">
+          Mensajes y Errores
+        </button>
+        <button class="console-tab-btn" data-console="console-output">
+          Resultado del Código
+        </button>
+      </div>
+
+      <div class="console-body">
+        <!-- Pestaña Consola 1: Errores / Éxito -->
+        <div id="console-errors" class="console-pane active">
+          <p class="log-info">Listo para analizar.</p>
+        </div>
+
+        <!-- Pestaña Consola 2: Resultado de ejecución -->
+        <div id="console-output" class="console-pane">
+          <p class="log-info">
+            Aquí se mostrará el resultado de las variables y operaciones
+            evaluadas.
+          </p>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Scripts (se activarán conforme los vayamos creando) -->
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,331 @@
+/* Variables de Color (Tema Oscuro tipo IDE) */
+:root {
+  --bg-main: #1e1e1e;
+  --bg-panel: #252526;
+  --bg-header: #333333;
+  --bg-input: #1a1a1a;
+  --border-color: #3e3e42;
+  --text-primary: #e0e0e0;
+  --text-muted: #858585;
+  --accent-blue: #007acc;
+  --accent-hover: #005f9e;
+  --color-success: #4caf50;
+  --color-error: #f44336;
+  --color-warning: #ff9800;
+  --font-ui: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  --font-code: "Consolas", "Courier New", monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Barra Superior */
+.top-bar {
+  background-color: var(--bg-header);
+  border-bottom: 1px solid var(--border-color);
+  padding: 10px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 55px;
+}
+
+.brand h1 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+select,
+.btn {
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  font-size: 0.9rem;
+  cursor: pointer;
+  outline: none;
+}
+
+select {
+  background-color: var(--bg-panel);
+  color: var(--text-primary);
+}
+
+.btn-primary {
+  background-color: var(--accent-blue);
+  color: #ffffff;
+  border: none;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.btn-primary:hover {
+  background-color: var(--accent-hover);
+}
+
+.btn-secondary {
+  background-color: var(--bg-panel);
+  color: var(--text-primary);
+}
+
+.btn-secondary:hover {
+  background-color: #3a3a3d;
+}
+
+/* Área de Trabajo Principal (40% / 60%) */
+.workspace {
+  display: flex;
+  flex: 1;
+  height: calc(100vh - 235px); /* Resta header y consola */
+  border-bottom: 1px solid var(--border-color);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-panel);
+}
+
+.editor-panel {
+  width: 40%;
+  border-right: 1px solid var(--border-color);
+}
+
+.results-panel {
+  width: 60%;
+}
+
+/* Cabeceras de Panel */
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 15px;
+  background-color: #2d2d30;
+  border-bottom: 1px solid var(--border-color);
+  height: 40px;
+}
+
+.panel-header h2 {
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.btn-upload {
+  font-size: 0.85rem;
+  background-color: var(--bg-header);
+  padding: 4px 10px;
+  border-radius: 3px;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+}
+
+.btn-upload:hover {
+  background-color: #444;
+}
+
+/* Editor de Código con Números de Línea */
+.editor-container {
+  display: flex;
+  flex: 1;
+  background-color: var(--bg-input);
+  overflow: hidden;
+}
+
+.line-numbers {
+  width: 45px;
+  padding: 15px 8px;
+  background-color: #1e1e1e;
+  color: var(--text-muted);
+  font-family: var(--font-code);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: right;
+  user-select: none;
+  border-right: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+textarea#code-input {
+  flex: 1;
+  background-color: transparent;
+  color: #d4d4d4;
+  border: none;
+  padding: 15px;
+  font-family: var(--font-code);
+  font-size: 14px;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+  white-space: pre;
+  overflow: auto;
+}
+
+/* Pestañas del Panel de Resultados */
+.tabs-header,
+.console-tabs {
+  display: flex;
+  background-color: #2d2d30;
+  border-bottom: 1px solid var(--border-color);
+  height: 40px;
+}
+
+.tab-btn,
+.console-tab-btn {
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--border-color);
+  color: var(--text-muted);
+  padding: 0 18px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition:
+    color 0.2s,
+    background 0.2s;
+}
+
+.tab-btn:hover,
+.console-tab-btn:hover {
+  color: var(--text-primary);
+  background-color: #333337;
+}
+
+.tab-btn.active,
+.console-tab-btn.active {
+  background-color: var(--bg-panel);
+  color: #ffffff;
+  border-top: 2px solid var(--accent-blue);
+  font-weight: 600;
+}
+
+.tabs-content {
+  flex: 1;
+  overflow: auto;
+  padding: 15px;
+}
+
+.tab-pane,
+.console-pane {
+  display: none;
+  height: 100%;
+}
+
+.tab-pane.active,
+.console-pane.active {
+  display: block;
+}
+
+/* Tablas (Tokens y Símbolos) */
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th,
+td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+th {
+  background-color: #2d2d30;
+  color: #cccccc;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+
+tr:hover td {
+  background-color: #2a2d2e;
+}
+
+.empty-msg {
+  color: var(--text-muted);
+  text-align: center;
+  padding: 30px;
+  font-style: italic;
+}
+
+/* Estilo para el Árbol Sintáctico */
+.ast-tree {
+  font-family: var(--font-code);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.ast-node {
+  margin-left: 20px;
+  border-left: 1px dashed var(--border-color);
+  padding-left: 12px;
+}
+
+.ast-label {
+  color: #4ec9b0;
+  font-weight: bold;
+}
+
+.ast-value {
+  color: #ce9178;
+}
+
+/* Consola Inferior (180px de alto) */
+.bottom-console {
+  height: 180px;
+  background-color: var(--bg-input);
+  display: flex;
+  flex-direction: column;
+}
+
+.console-tabs {
+  height: 35px;
+}
+
+.console-body {
+  flex: 1;
+  padding: 12px 18px;
+  font-family: var(--font-code);
+  font-size: 13px;
+  overflow-y: auto;
+  line-height: 1.5;
+}
+
+.log-info {
+  color: var(--text-muted);
+}
+.log-success {
+  color: var(--color-success);
+}
+.log-error {
+  color: var(--color-error);
+}
+.log-warning {
+  color: var(--color-warning);
+}
